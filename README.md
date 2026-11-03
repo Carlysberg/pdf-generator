@@ -21,7 +21,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Deploy to Vercel
 
-Push this repo to GitHub, then import it at [vercel.com/new](https://vercel.com/new). No environment variables are needed — it works out of the box.
+import it at [vercel.com/new](https://vercel.com/new). No environment variables are needed — it works out of the box.
 
 ## Good to know
 
