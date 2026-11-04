@@ -22,6 +22,7 @@ export default function Home() {
   const [cameraTarget, setCameraTarget] = useState<0 | 1>(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const stopCamera = useCallback(() => {
@@ -36,21 +37,29 @@ export default function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (cameraOpen && video && streamRef.current) {
+      video.srcObject = streamRef.current;
+      video.play().catch(() => {});
+    }
+  }, [cameraOpen]);
+
   async function openCamera(index: 0 | 1) {
     setCameraTarget(index);
     setError("");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError(
+        "Camera is unavailable. Open the site over HTTPS (or localhost) and allow camera access.",
+      );
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } },
       });
       streamRef.current = stream;
       setCameraOpen(true);
-      requestAnimationFrame(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play();
-        }
-      });
     } catch {
       setError("Could not access camera. Please check permissions.");
     }
@@ -59,29 +68,24 @@ export default function Home() {
   function capturePhoto() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas) return;
+    const frame = frameRef.current;
+    if (!video || !canvas || !frame || !video.videoWidth) return;
 
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
+    // The video is shown with object-cover, so map the on-screen frame back to video pixels.
+    const vr = video.getBoundingClientRect();
+    const fr = frame.getBoundingClientRect();
+    const scale = Math.max(vr.width / video.videoWidth, vr.height / video.videoHeight);
+    const offX = (vr.width - video.videoWidth * scale) / 2;
+    const offY = (vr.height - video.videoHeight * scale) / 2;
+    const sx = (fr.left - vr.left - offX) / scale;
+    const sy = (fr.top - vr.top - offY) / scale;
+    const sw = fr.width / scale;
+    const sh = fr.height / scale;
 
-    // Card guide rectangle — centered, max 80% of the viewport
-    const maxW = vw * 0.8;
-    const maxH = vh * 0.8;
-    let cardW: number, cardH: number;
-    if (maxW / CARD_ASPECT <= maxH) {
-      cardW = maxW;
-      cardH = maxW / CARD_ASPECT;
-    } else {
-      cardH = maxH;
-      cardW = maxH * CARD_ASPECT;
-    }
-    const cx = (vw - cardW) / 2;
-    const cy = (vh - cardH) / 2;
-
-    canvas.width = Math.round(cardW);
-    canvas.height = Math.round(cardH);
+    canvas.width = Math.round(sw);
+    canvas.height = Math.round(sh);
     const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(video, cx, cy, cardW, cardH, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 
     canvas.toBlob(
       (blob) => {
@@ -190,25 +194,15 @@ export default function Home() {
               muted
               className="absolute inset-0 w-full h-full object-cover"
             />
-            {/* Dark overlay with transparent card cutout */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 100">
-              <defs>
-                <mask id="card-cutout">
-                  <rect width="100" height="100" fill="white" />
-                  <rect
-                    x="10" y={50 - 40 / CARD_ASPECT}
-                    width="80" height={80 / CARD_ASPECT}
-                    rx="1.5" fill="black"
-                  />
-                </mask>
-              </defs>
-              <rect width="100" height="100" fill="rgba(0,0,0,0.55)" mask="url(#card-cutout)" />
-              <rect
-                x="10" y={50 - 40 / CARD_ASPECT}
-                width="80" height={80 / CARD_ASPECT}
-                rx="1.5" fill="none" stroke="white" strokeWidth="0.4"
-              />
-            </svg>
+            <div
+              ref={frameRef}
+              className="relative rounded-xl border-2 border-white pointer-events-none"
+              style={{
+                width: `min(85%, calc(70vh * ${CARD_ASPECT}))`,
+                aspectRatio: `${CARD_ASPECT}`,
+                boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)",
+              }}
+            />
             <p className="absolute top-4 left-0 right-0 text-center text-white text-sm font-medium drop-shadow-lg">
               Align your card within the frame
             </p>
@@ -314,7 +308,11 @@ export default function Home() {
                     </button>
                   </div>
                 ) : (
-                  <div className="aspect-square rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-2 p-2">
+                  <div
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => onDrop(i, e)}
+                    className="aspect-square rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-2 p-2"
+                  >
                     <span className="text-xs text-slate-400">Photo {i + 1}</span>
                     <button
                       type="button"
@@ -346,14 +344,6 @@ export default function Home() {
                   className="hidden"
                   onChange={(e) => onFileChange(i, e)}
                 />
-                {/* Drop zone overlay for drag & drop */}
-                {!previews[i] && (
-                  <div
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => onDrop(i, e)}
-                    className="absolute inset-0 rounded-lg"
-                  />
-                )}
               </div>
             ))}
           </div>
