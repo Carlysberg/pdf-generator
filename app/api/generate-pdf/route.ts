@@ -24,6 +24,27 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
 
+    const indexNumber = (form.get("indexNumber") as string | null)?.trim() ?? "";
+    if (!indexNumber)
+      return NextResponse.json(
+        { error: "Index number is required." },
+        { status: 400 },
+      );
+
+    const programOfStudy = (form.get("programOfStudy") as string | null)?.trim() ?? "";
+    if (!programOfStudy)
+      return NextResponse.json(
+        { error: "Program of study is required." },
+        { status: 400 },
+      );
+
+    const ghanaCardNumber = (form.get("ghanaCardNumber") as string | null)?.trim() ?? "";
+    if (!ghanaCardNumber)
+      return NextResponse.json(
+        { error: "Ghana Card number is required." },
+        { status: 400 },
+      );
+
     const files = [form.get("image1") as File | null, form.get("image2") as File | null];
     for (let i = 0; i < 2; i++) {
       const f = files[i];
@@ -48,7 +69,7 @@ export async function POST(req: NextRequest) {
       files.map((f) => f!.arrayBuffer().then((ab) => Buffer.from(ab))),
     );
 
-    const pdf = await buildPdf(name, buf1, buf2);
+    const pdf = await buildPdf(name, indexNumber, programOfStudy, ghanaCardNumber, buf1, buf2);
     const safeName =
       name.replace(/[\\/:*?"<>|\x00-\x1f]/g, "").trim() || "document";
 

@@ -83,8 +83,15 @@ function wrap(
   return lines;
 }
 
+const LABEL_SIZE = 10;
+const VALUE_SIZE = 12;
+const FIELD_GAP = 6;
+
 export async function buildPdf(
   name: string,
+  indexNumber: string,
+  programOfStudy: string,
+  ghanaCardNumber: string,
   image1: Buffer,
   image2: Buffer,
 ): Promise<Buffer> {
@@ -120,7 +127,33 @@ export async function buildPdf(
     y -= leading;
   }
 
-  const ruleY = y + leading - fontSize * 0.55;
+  y += leading - fontSize * 0.55;
+  page.drawLine({
+    start: { x: MARGIN, y },
+    end: { x: A4_W - MARGIN, y },
+    thickness: 0.75,
+    color: RULE,
+  });
+
+  y -= GAP + LABEL_SIZE;
+  const fields: [string, string][] = [
+    ["Index Number", indexNumber],
+    ["Program of Study", programOfStudy],
+    ["Ghana Card Number", ghanaCardNumber],
+  ];
+  const labelColor = rgb(0.45, 0.47, 0.5);
+  for (const [label, value] of fields) {
+    page.drawText(label, { x: MARGIN, y, size: LABEL_SIZE, font, color: labelColor });
+    y -= VALUE_SIZE + 2;
+    const valueLines = wrap(value, font, VALUE_SIZE, contentW);
+    for (const vl of valueLines) {
+      page.drawText(vl, { x: MARGIN, y, size: VALUE_SIZE, font, color: INK });
+      y -= VALUE_SIZE * 1.25;
+    }
+    y -= FIELD_GAP;
+  }
+
+  const ruleY = y + FIELD_GAP / 2;
   page.drawLine({
     start: { x: MARGIN, y: ruleY },
     end: { x: A4_W - MARGIN, y: ruleY },
@@ -128,7 +161,7 @@ export async function buildPdf(
     color: RULE,
   });
 
-  const areaTop = ruleY - GAP;
+  const areaTop = ruleY - GAP / 2 - GAP;
   const areaH = areaTop - MARGIN;
   const sizes: Fit[] = imgs.map((i) => [i.w, i.h]);
   const { mode, fits } = bestLayout(sizes, contentW, areaH);
