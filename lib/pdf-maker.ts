@@ -8,8 +8,6 @@ const A4_W = 595.28;
 const A4_H = 841.89;
 const MARGIN = 40;
 const GAP = 16;
-const MAX_FONT = 30;
-const MIN_FONT = 16;
 const MAX_SIDE = 2000;
 const INK = rgb(0.13, 0.15, 0.18);
 const RULE = rgb(0.8, 0.82, 0.85);
@@ -103,40 +101,9 @@ export async function buildPdf(
   const page = doc.addPage([A4_W, A4_H]);
   const contentW = A4_W - 2 * MARGIN;
 
-  let fontSize = MAX_FONT;
-  while (
-    fontSize > MIN_FONT &&
-    font.widthOfTextAtSize(name, fontSize) > contentW
-  ) {
-    fontSize -= 2;
-  }
-
-  const lines = wrap(name, font, fontSize, contentW);
-  const leading = fontSize * 1.25;
-
-  let y = A4_H - MARGIN - fontSize;
-  for (const line of lines) {
-    const lw = font.widthOfTextAtSize(line, fontSize);
-    page.drawText(line, {
-      x: (A4_W - lw) / 2,
-      y,
-      size: fontSize,
-      font,
-      color: INK,
-    });
-    y -= leading;
-  }
-
-  y += leading - fontSize * 0.55;
-  page.drawLine({
-    start: { x: MARGIN, y },
-    end: { x: A4_W - MARGIN, y },
-    thickness: 0.75,
-    color: RULE,
-  });
-
-  y -= GAP + LABEL_SIZE;
+  let y = A4_H - MARGIN - LABEL_SIZE;
   const fields: [string, string][] = [
+    ["Name", name],
     ["Index Number", indexNumber],
     ["Program of Study", programOfStudy],
     ["Ghana Card Number", ghanaCardNumber],
